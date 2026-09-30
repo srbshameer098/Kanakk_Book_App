@@ -17,7 +17,7 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     namespace = "com.kanakkbook.app"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 36
     ndkVersion = "27.0.12077973"
 
     compileOptions {
@@ -33,8 +33,8 @@ android {
     defaultConfig {
         applicationId = "com.kanakkbook.app"
 
-        minSdk = 23
-        targetSdk = flutter.targetSdkVersion
+        minSdk = flutter.minSdkVersion
+        targetSdk = 36
 
         versionCode = flutter.versionCode
         versionName = flutter.versionName
@@ -62,4 +62,19 @@ dependencies {
 
 flutter {
     source = "../.."
+}
+
+// Workaround for AGP bug causing missing directory errors
+tasks.whenTaskAdded {
+    val taskName = name
+    if (taskName.contains("stripDebugDebugSymbols")) {
+        doFirst {
+            file("${layout.buildDirectory.get().asFile}/intermediates/merged_native_libs/debug/mergeDebugNativeLibs/out").mkdirs()
+        }
+    }
+    if (taskName.contains("mergeExtDexDebug")) {
+        doFirst {
+            file("${layout.buildDirectory.get().asFile}/intermediates/external_file_lib_dex_archives/debug/desugarDebugFileDependencies").mkdirs()
+        }
+    }
 }

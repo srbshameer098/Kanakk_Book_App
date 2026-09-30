@@ -5,6 +5,8 @@ import 'package:intl/intl.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../customers/data/models/customer.dart';
+import '../../../customers/presentation/bloc/customer_bloc.dart';
+import '../../../customers/presentation/bloc/customer_event.dart';
 import '../../data/models/transaction.dart';
 import '../bloc/transaction_bloc.dart';
 import '../bloc/transaction_event.dart';
@@ -62,8 +64,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       );
 
       context.read<TransactionBloc>().add(AddTransactionEvent(transaction));
-      
-      // TODO: We also need to update Customer balance here or in the bloc/repository (Phase 4)
+      context.read<CustomerBloc>().add(LoadCustomersEvent());
       
       Navigator.pop(context);
     }

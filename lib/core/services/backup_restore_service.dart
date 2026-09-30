@@ -1,9 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:intl/intl.dart';
 import '../../features/customers/data/models/customer.dart';
 import '../../features/transactions/data/models/transaction.dart';
@@ -20,7 +22,8 @@ class BackupRestoreService {
 
     if (lastBackup != today) {
       debugPrint('Creating daily backup for $today...');
-      final success = await _exportDataToFile('kada_kanakku_backup_$today.json');
+      final jsonString = await generateBackupJson();
+      final success = await _exportDataToInternalFile('kanakk_book_backup_$today.json', jsonString: jsonString);
       if (success) {
         await prefs.setString(_kLastBackupDate, today);
         debugPrint('Daily backup created successfully.');
@@ -31,16 +34,89 @@ class BackupRestoreService {
   }
 
   static Future<void> manualBackup(BuildContext context) async {
-    final today = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
-    final success = await _exportDataToFile('kada_kanakku_manual_backup_$today.json');
-    if (context.mounted) {
-      if (success) {
+    await saveBackupToDevice(context);
+  }
+
+  /// Prompts user to select destination folder (e.g. Documents, Downloads) to save the JSON backup file
+  static Future<void> saveBackupToDevice(BuildContext context, {String? fileName}) async {
+    try {
+      final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
+      final name = fileName ?? 'kanakk_book_backup_$timestamp.json';
+      final jsonString = await generateBackupJson();
+      final bytes = Uint8List.fromList(utf8.encode(jsonString));
+
+      // Also save an internal copy as safety net
+      await _exportDataToInternalFile(name, jsonString: jsonString);
+
+      // Opens system file picker so user can pick Documents, Downloads, or any folder
+      final selectedPath = await FilePicker.saveFile(
+        dialogTitle: 'Select folder to save backup',
+        fileName: name,
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+        bytes: bytes,
+      );
+
+      if (context.mounted) {
+        if (selectedPath != null) {
+          final savedName = selectedPath.split('/').last.split('\\').last;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Backup saved successfully: $savedName'),
+              backgroundColor: Colors.green[700],
+              action: SnackBarAction(
+                label: 'SHARE',
+                textColor: Colors.white,
+                onPressed: () => shareBackup(context, fileName: name),
+              ),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Backup save cancelled.')),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('saveBackupToDevice error: $e');
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Backup created successfully in Documents folder.')),
+          const SnackBar(content: Text('Opening share options to export backup...')),
         );
-      } else {
+        await shareBackup(context, fileName: fileName);
+      }
+    }
+  }
+
+  /// Exports backup via system share sheet (Google Drive, WhatsApp, Email, Files)
+  static Future<void> shareBackup(BuildContext context, {String? fileName}) async {
+    try {
+      final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
+      final name = fileName ?? 'kanakk_book_backup_$timestamp.json';
+      final jsonString = await generateBackupJson();
+
+      final tempDir = await getTemporaryDirectory();
+      final file = File('${tempDir.path}/$name');
+      await file.writeAsString(jsonString);
+
+      // Also save internal backup
+      await _exportDataToInternalFile(name, jsonString: jsonString);
+
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(file.path, mimeType: 'application/json')],
+          subject: 'Kanakk Book Backup',
+          text: 'Kanakk Book Backup ($name)',
+        ),
+      );
+    } catch (e) {
+      debugPrint('shareBackup error: $e');
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to create backup.')),
+          SnackBar(
+            content: Text('Failed to share backup: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -51,17 +127,30 @@ class BackupRestoreService {
       FilePickerResult? result = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['json'],
+        withData: true,
       );
 
-      if (result != null && result.files.single.path != null) {
-        File file = File(result.files.single.path!);
-        String jsonString = await file.readAsString();
+      if (result != null && result.files.isNotEmpty) {
+        final pickedFile = result.files.single;
+        String jsonString;
+
+        if (pickedFile.bytes != null) {
+          jsonString = utf8.decode(pickedFile.bytes!);
+        } else if (pickedFile.path != null) {
+          final file = File(pickedFile.path!);
+          jsonString = await file.readAsString();
+        } else {
+          throw Exception('Unable to read selected file');
+        }
         
         await _importDataFromJson(jsonString);
 
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Data restored successfully! Please restart the app.')),
+            const SnackBar(
+              content: Text('Data restored successfully! Please restart the app.'),
+              backgroundColor: Colors.green,
+            ),
           );
         }
       }
@@ -69,36 +158,41 @@ class BackupRestoreService {
       debugPrint('Restore error: $e');
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error restoring backup: $e')),
+          SnackBar(
+            content: Text('Error restoring backup: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
   }
 
-  static Future<bool> _exportDataToFile(String fileName) async {
+  static Future<String> generateBackupJson() async {
+    final db = LocalDatabaseService();
+    final customers = db.getAllCustomers();
+    final transactions = db.getAllTransactions();
+    final shop = db.getShop();
+
+    final backupData = {
+      'version': 1,
+      'timestamp': DateTime.now().toIso8601String(),
+      'shop': shop != null ? _shopToJson(shop) : null,
+      'customers': customers.map((c) => _customerToJson(c)).toList(),
+      'transactions': transactions.map((t) => _transactionToJson(t)).toList(),
+    };
+
+    return const JsonEncoder.withIndent('  ').convert(backupData);
+  }
+
+  static Future<bool> _exportDataToInternalFile(String fileName, {String? jsonString}) async {
     try {
-      final db = LocalDatabaseService();
-      final customers = db.getAllCustomers();
-      final transactions = db.getAllTransactions();
-      final shop = db.getShop();
-
-      final backupData = {
-        'version': 1,
-        'timestamp': DateTime.now().toIso8601String(),
-        'shop': shop != null ? _shopToJson(shop) : null,
-        'customers': customers.map((c) => _customerToJson(c)).toList(),
-        'transactions': transactions.map((t) => _transactionToJson(t)).toList(),
-      };
-
-      final jsonString = jsonEncode(backupData);
-      
+      final content = jsonString ?? await generateBackupJson();
       final directory = await getApplicationDocumentsDirectory();
       final file = File('${directory.path}/$fileName');
-      await file.writeAsString(jsonString);
-      
+      await file.writeAsString(content);
       return true;
     } catch (e) {
-      debugPrint('Backup error: $e');
+      debugPrint('Internal backup error: $e');
       return false;
     }
   }

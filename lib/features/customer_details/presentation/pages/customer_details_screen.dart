@@ -12,6 +12,7 @@ import '../../../transactions/presentation/pages/add_transaction_screen.dart';
 import '../../../reminders/presentation/pages/whatsapp_reminder_screen.dart';
 import '../../../../core/services/pdf_export_service.dart';
 import '../../../../core/services/shop_settings_service.dart';
+import '../../../../core/database/local_database_service.dart';
 import '../widgets/transaction_list_tab.dart';
 import '../widgets/customer_info_tab.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -166,7 +167,8 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Sing
             // Since we might need the transaction state to calculate the real-time balance if not stored:
             BlocBuilder<TransactionBloc, TransactionState>(
               builder: (context, state) {
-                int currentBalance = _currentCustomer.currentBalance;
+                final dbCustomer = LocalDatabaseService().getCustomerById(_currentCustomer.id) ?? _currentCustomer;
+                int currentBalance = dbCustomer.currentBalance;
 
                 final isDue = currentBalance > 0;
                 

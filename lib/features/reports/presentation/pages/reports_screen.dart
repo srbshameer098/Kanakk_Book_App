@@ -11,6 +11,7 @@ import '../../../customers/data/models/customer.dart';
 import '../bloc/report_bloc.dart';
 import '../bloc/report_event.dart';
 import '../bloc/report_state.dart';
+import '../../../settings/presentation/widgets/ad_banner_widget.dart';
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
@@ -137,6 +138,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 return const SizedBox.shrink();
               },
             ),
+          ),
+          const AdBannerWidget(
+            // TODO: Replace with your actual Ad Unit IDs for the Report Page
+            androidAdUnitId: 'ca-app-pub-3269435850779402/8066534102', 
+            iosAdUnitId: 'ca-app-pub-3269435850779402/2535987733',
           ),
         ],
       ),

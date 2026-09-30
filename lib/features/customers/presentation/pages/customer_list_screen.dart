@@ -7,6 +7,7 @@ import '../bloc/customer_event.dart';
 import '../bloc/customer_state.dart';
 import 'add_edit_customer_screen.dart';
 import '../../../customer_details/presentation/pages/customer_details_screen.dart';
+import '../../../settings/presentation/widgets/ad_banner_widget.dart';
 
 class CustomerListScreen extends StatefulWidget {
   const CustomerListScreen({super.key});
@@ -118,6 +119,10 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                 return const SizedBox.shrink();
               },
             ),
+          ),
+          const AdBannerWidget(
+            androidAdUnitId: 'ca-app-pub-3269435850779402/4433024390',
+            iosAdUnitId: 'ca-app-pub-3269435850779402/4433024390',
           ),
         ],
       ),

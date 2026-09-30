@@ -3,7 +3,14 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'dart:io';
 
 class AdBannerWidget extends StatefulWidget {
-  const AdBannerWidget({super.key});
+  final String? androidAdUnitId;
+  final String? iosAdUnitId;
+
+  const AdBannerWidget({
+    super.key,
+    this.androidAdUnitId,
+    this.iosAdUnitId,
+  });
 
   @override
   State<AdBannerWidget> createState() => _AdBannerWidgetState();
@@ -13,13 +20,14 @@ class _AdBannerWidgetState extends State<AdBannerWidget> {
   BannerAd? _bannerAd;
   bool _isLoaded = false;
 
-  final String _adUnitId = Platform.isAndroid
-      ? 'ca-app-pub-3269435850779402/3457297140' // Test Android AdUnit
-      : 'ca-app-pub-3940256099942544/2934735716'; // Test iOS AdUnit
+  late final String _adUnitId;
 
   @override
   void initState() {
     super.initState();
+    _adUnitId = Platform.isAndroid
+        ? (widget.androidAdUnitId ?? 'ca-app-pub-3269435850779402/3457297140') // Test Android AdUnit
+        : (widget.iosAdUnitId ?? 'ca-app-pub-3940256099942544/2934735716'); // Test iOS AdUnit
     _loadAd();
   }
 

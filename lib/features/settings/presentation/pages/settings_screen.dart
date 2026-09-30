@@ -8,6 +8,7 @@ import '../../../../core/services/backup_restore_service.dart';
 import 'premium_upgrade_screen.dart';
 import 'shop_profile_screen.dart';
 import 'about_app_screen.dart';
+import '../widgets/ad_banner_widget.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -122,36 +123,107 @@ srbshameer098@gmail.com'''),
   }
 
   void _showBackupRestore() {
-    if (!_isPremium) {
-      PremiumService.showUpgradePrompt(context, feature: 'Backup & Restore');
-      return;
-    }
-    
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Backup & Restore'),
-        content: const Text('Choose an action below. Creating a backup will save a JSON file to your device.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('CANCEL'),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.cloud_sync, color: AppColors.primary, size: 28),
+                  ),
+                  const SizedBox(width: 14),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Backup & Restore',
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          'Save or restore your shop records safely',
+                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.save_alt_rounded, color: Colors.blue),
+                ),
+                title: const Text('Save Backup to Documents', style: TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: const Text('Choose Documents or any folder on your device to save .json file'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  BackupRestoreService.saveBackupToDevice(context);
+                },
+              ),
+              const Divider(height: 1),
+              ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.share_rounded, color: Colors.green),
+                ),
+                title: const Text('Share / Save to Google Drive', style: TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: const Text('Send via Google Drive, WhatsApp, or Email'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  BackupRestoreService.shareBackup(context);
+                },
+              ),
+              const Divider(height: 1),
+              ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.restore_rounded, color: Colors.orange),
+                ),
+                title: const Text('Restore Backup', style: TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: const Text('Select a saved backup file (.json) to restore data'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  BackupRestoreService.restoreBackup(context);
+                },
+              ),
+            ],
           ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              BackupRestoreService.restoreBackup(context);
-            },
-            child: const Text('RESTORE'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              BackupRestoreService.manualBackup(context);
-            },
-            child: const Text('BACKUP'),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -160,9 +232,12 @@ srbshameer098@gmail.com'''),
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text('settings'.tr())),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
+      body: Column(
         children: [
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
           Card(
             color: AppColors.surface,
             child: Column(
@@ -230,7 +305,7 @@ srbshameer098@gmail.com'''),
                     size: 32,
                   ),
                   title: const Text(
-                    'Kada Kanakku Premium',
+                    'Kanakk Book Premium',
                     style: AppTextStyles.h3,
                   ),
                   subtitle: Text(
@@ -261,25 +336,31 @@ srbshameer098@gmail.com'''),
                     ),
                   )
                 else
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16.0,
-                      vertical: 8.0,
-                    ),
-                    child: OutlinedButton(
-                      onPressed: () async {
-                        // Testing: Allow user to revert to free version
-                        await PremiumService.setPremium(false);
-                        _loadSettings();
-                      },
-                      child: const Text('Revert to Free Version (Test Mode)'),
-                    ),
-                  ),
+                SizedBox.shrink()
+                  // Padding(
+                  //   padding: const EdgeInsets.symmetric(
+                  //     horizontal: 16.0,
+                  //     vertical: 8.0,
+                  //   ),
+                  //   child: OutlinedButton(
+                  //     onPressed: () async {
+                  //       // Testing: Allow user to revert to free version
+                  //       await PremiumService.setPremium(false);
+                  //       _loadSettings();
+                  //     },
+                  //     child: const Text('Revert to Free Version (Test Mode)'),
+                  //   ),
+                  // ),
               ],
             ),
           ),
+          const AdBannerWidget(
+            // TODO: Replace with your actual Ad Unit IDs for the Settings Page
+            androidAdUnitId: 'ca-app-pub-3269435850779402/3408164442', 
+            iosAdUnitId: 'ca-app-pub-3269435850779402/3408164442',
+          ),
         ],
       ),
-    );
+    )]));
   }
 }
